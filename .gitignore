@@ -1,0 +1,17 @@
+# IDEs and Editors
+.idea/
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln
+*.csproj
+*.unityproj
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Unity specific meta and assembly files (ignored for maximum repository cleanliness on GitHub)
+*.meta
+*.asmdef
