@@ -26,6 +26,7 @@ Thumbs.db
 
 # --- Unity specific assembly files ---
 *.asmdef
+*.meta
 
 # --- Ігнорування матеріалів ---
 # Повністю виключає всі файли матеріалів (.mat) з репозиторію GitHub
