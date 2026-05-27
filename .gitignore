@@ -1,4 +1,4 @@
-# IDEs and Editors
+# --- IDEs and Editors ---
 .idea/
 .vs/
 *.suo
@@ -8,10 +8,25 @@
 *.csproj
 *.unityproj
 
-# OS generated files
+# --- OS generated files ---
 .DS_Store
 Thumbs.db
 
-# Unity specific meta and assembly files (ignored for maximum repository cleanliness on GitHub)
-*.meta
+# --- Unity Temporary and Generated Folders (КРИТИЧНО) ---
+# Ці папки містять гігабайти тимчасового локального кешу.
+# Їх обов'язково треба ігнорувати, щоб репозиторій був чистим.
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Build]/
+/[Builds]/
+/[Logs]/
+/[UserSettings]/
+/[MemoryCaptures]/
+
+# --- Unity specific assembly files ---
 *.asmdef
+
+# --- Ігнорування матеріалів ---
+# Повністю виключає всі файли матеріалів (.mat) з репозиторію GitHub
+*.mat
