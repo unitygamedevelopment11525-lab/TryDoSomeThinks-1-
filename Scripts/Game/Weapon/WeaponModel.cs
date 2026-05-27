@@ -1,19 +1,18 @@
-﻿using UnityEngine;
+using UnityEngine;
 
-namespace Project.Scripts.Game.Player
+namespace Project.Scripts.Game.Weapon
 {
     /// <summary>
-    /// Цей скрипт вішається на сам префаб 3D-моделі зброї.
-    /// Дозволяє вказати унікальні точки (наприклад, дуло) для кожного типу зброї.
+    /// Цей скрипт вішається безпосередньо на префаб 3D-моделі зброї.
     /// </summary>
     public class WeaponModel : MonoBehaviour
     {
         [Header("Weapon Transforms")]
-        [Tooltip("Точка виліту кулі на дулі цієї конкретної моделі зброї")]
+        [Tooltip("Точка виліту кулі на дулі цієї конкретної моделі зброї (об'єкт Muzzle)")]
         [SerializeField] private Transform bulletSpawnTransform;
         
         /// <summary>
-        /// Публічна властивість для отримання точки виліту кулі
+        /// Публічна властивість для отримання точки виліту кулі.
         /// </summary>
         public Transform BulletSpawnTransform => bulletSpawnTransform;
     }

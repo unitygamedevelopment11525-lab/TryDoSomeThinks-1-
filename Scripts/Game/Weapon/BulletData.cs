@@ -1,17 +1,17 @@
-﻿using UnityEngine;
+using UnityEngine;
 
-namespace Project.Scripts.Game.Player
+namespace Project.Scripts.Game.Weapon
 {
     [CreateAssetMenu(fileName = "New Bullet Data", menuName = "Weapons/Bullet Data")]
     public class BulletData : ScriptableObject
     {
         [Header("Bullet Physical Settings")]
         [Tooltip("Швидкість польоту кулі")]
-        [SerializeField] private float speed = 40f;
+        [SerializeField] private float speed = 50f;
         public float Speed => speed;
 
         [Tooltip("Час існування кулі в секундах до її автоматичного знищення")]
-        [SerializeField] private float lifetime = 5f;
+        [SerializeField] private float lifetime = 4f;
         public float Lifetime => lifetime;
 
         [Header("Combat Settings")]

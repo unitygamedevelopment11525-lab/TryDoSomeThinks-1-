@@ -1,7 +1,6 @@
 ﻿using UnityEngine;
-using Project.Scripts.Game; // Для доступу до інтерфейсу IDamageable
 
-namespace Project.Scripts.Game.Player
+namespace Project.Scripts.Game.Weapon
 {
     [RequireComponent(typeof(Rigidbody))]
     public class Bullet : MonoBehaviour
@@ -16,7 +15,7 @@ namespace Project.Scripts.Game.Player
         private float _overrideDamage = -1f;
 
         /// <summary>
-        /// Метод ініціалізації кулі з налаштуванням шарів зіткнення та можливим перевизначенням шкоди.
+        /// Метод ініціалізації кулі з налаштуванням шарів зіткнення та шкоди.
         /// </summary>
         public void Initialize(LayerMask hitLayers, float overrideDamage = -1f)
         {
@@ -24,49 +23,46 @@ namespace Project.Scripts.Game.Player
             _hasHit = false;
             _overrideDamage = overrideDamage;
 
-            // Час автоматичного знищення зчитуємо безпосередньо з асету даних кулі
-            float lifetime = bulletData != null ? bulletData.Lifetime : 5f;
+            // Час автоматичного знищення зчитуємо з асету кулі
+            float lifetime = bulletData != null ? bulletData.Lifetime : 4f;
             Destroy(gameObject, lifetime);
         }
 
         private void OnCollisionEnter(Collision collision)
         {
-            // Запобігаємо подвійному спрацьовуванню в одному кадрі
             if (_hasHit) return;
 
-            // Перевіряємо, чи входить об'єкт у дозволені шари для взаємодії (hitLayers)
+            // Перевіряємо шар зіткнення
             if (((1 << collision.gameObject.layer) & _hitLayers) != 0)
             {
                 _hasHit = true;
 
-                Debug.Log($"[Bullet] Фізичне влучання в: {collision.gameObject.name}");
+                Debug.Log($"[Bullet] Влучання в: {collision.gameObject.name}");
 
-                // Визначаємо шкоду: якщо передано override (від зброї), беремо її, інакше — базову шкоду кулі
-                float finalDamage = _overrideDamage > 0f ? _overrideDamage : (bulletData != null ? bulletData.BaseDamage : 0f);
+                // Визначаємо шкоду: якщо передано override (від зброї), беремо її, інакше — базову
+                float finalDamage = _overrideDamage > 0f ? _overrideDamage : (bulletData != null ? bulletData.BaseDamage : 10f);
 
-                // Шукаємо інтерфейс IDamageable на об'єкті зіткнення
-                IDamageable damageable = collision.collider.GetComponent<IDamageable>();
-                if (damageable == null)
+                // Шукаємо тестову мішень SimpleTarget
+                SimpleTarget target = collision.collider.GetComponent<SimpleTarget>();
+                if (target == null)
                 {
-                    // На випадок, якщо колайдер на дочірньому об'єкті, а скрипт шкоди вище в ієрархії
-                    damageable = collision.collider.GetComponentInParent<IDamageable>();
+                    target = collision.collider.GetComponentInParent<SimpleTarget>();
                 }
 
-                if (damageable != null)
+                if (target != null)
                 {
-                    damageable.TakeDamage(finalDamage);
+                    target.TakeDamage(finalDamage);
                 }
 
-                // Спавнимо ефект влучання у точці контакту з асету кулі
+                // Спавнимо ефект влучання у точці контакту
                 GameObject effectPrefab = bulletData != null ? bulletData.HitEffectPrefab : null;
                 if (effectPrefab != null && collision.contacts.Length > 0)
                 {
                     ContactPoint contact = collision.contacts[0];
-                    // Повертаємо ефект обличчям до нормалі поверхні
                     Instantiate(effectPrefab, contact.point, Quaternion.LookRotation(contact.normal));
                 }
 
-                // Знищуємо об'єкт фізичної кулі після першого ж влучання
+                // Видаляємо фізичну кулю
                 Destroy(gameObject);
             }
         }

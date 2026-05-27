@@ -1,26 +1,24 @@
 ﻿using UnityEngine;
 using UnityEngine.InputSystem;
-using Project.Scripts.Game.Inventory;
-using System.Collections;
-using Project.Scripts.Game.Weapon;
+using Project.Scripts.Game.Inventory; // Додаємо, щоб контролер бачив ваш ScriptableObject WeaponItem
 
-namespace Project.Scripts.Game.Player
+namespace Project.Scripts.Game.Weapon
 {
     public class WeaponController : MonoBehaviour
     {
         [Header("Setup")]
-        [Tooltip("Об'єкт-контейнер для зброї (повинен бути дочірнім до CameraHolder, щоб рухатися разом із поглядом)")]
+        [Tooltip("Контейнер для зброї під камерою гравця (наприклад, CameraHolder)")]
         [SerializeField] private Transform weaponHolder;
         
-        [Tooltip("Шари, по яким можна стріляти (наприклад, Default, World, Enemies тощо)")]
+        [Tooltip("Шари, по яким можна стріляти (наприклад, Default, World тощо)")]
         [SerializeField] private LayerMask hitLayers;
 
-        [Header("Bullet Settings")]
-        [Tooltip("Префаб фізичної кулі (має містити компоненти Rigidbody та Bullet)")]
+        [Header("Simple Bullet Settings")]
+        [Tooltip("Префаб кулі (звичайна сфера з Rigidbody та скриптом Bullet)")]
         [SerializeField] private GameObject bulletPrefab;
 
-        [Tooltip("Резервна точка виліту кулі (якщо на моделі зброї не знайдено компонент WeaponModel)")]
-        [SerializeField] private Transform fallbackBulletSpawnPoint;
+        [Tooltip("Швидкість польоту кулі")]
+        [SerializeField] private float bulletSpeed = 50f;
 
         private InputSystem_Actions _inputActions;
         private WeaponItem _currentWeaponData;
@@ -28,7 +26,10 @@ namespace Project.Scripts.Game.Player
 
         private float _nextFireTime;
         private int _currentAmmo;
+        
+        // Таймер перезарядки в Update (без корутин)
         private bool _isReloading;
+        private float _reloadTimer;
 
         private void Awake()
         {
@@ -38,12 +39,12 @@ namespace Project.Scripts.Game.Player
         private void OnEnable()
         {
             _inputActions.Player.Enable();
-            
             if (_inputActions.Player.Attack != null)
             {
                 _inputActions.Player.Attack.performed += OnAttackPerformed;
             }
 
+            // Підписка на перезарядку (клавіша R)
             try
             {
                 var reloadAction = _inputActions.Player.GetType().GetProperty("Reload")?.GetValue(_inputActions.Player) as InputAction;
@@ -61,7 +62,6 @@ namespace Project.Scripts.Game.Player
             {
                 _inputActions.Player.Attack.performed -= OnAttackPerformed;
             }
-            
             try
             {
                 var reloadAction = _inputActions.Player.GetType().GetProperty("Reload")?.GetValue(_inputActions.Player) as InputAction;
@@ -71,8 +71,22 @@ namespace Project.Scripts.Game.Player
                 }
             }
             catch { }
-
             _inputActions.Player.Disable();
+        }
+
+        private void Update()
+        {
+            // Обробка таймера перезарядки
+            if (_isReloading)
+            {
+                _reloadTimer -= Time.deltaTime;
+                if (_reloadTimer <= 0f)
+                {
+                    _currentAmmo = _currentWeaponData.maxAmmo;
+                    _isReloading = false;
+                    Debug.Log($"<color=green>[Weapon] Перезарядка завершена!</color> Набої: {_currentAmmo}/{_currentWeaponData.maxAmmo}");
+                }
+            }
         }
 
         public void EquipWeapon(WeaponItem newWeapon)
@@ -82,16 +96,17 @@ namespace Project.Scripts.Game.Player
             UnequipCurrentWeapon();
 
             _currentWeaponData = newWeapon;
-            _currentAmmo = newWeapon.maxAmmo; // Змінено на маленьку літеру
+            _currentAmmo = newWeapon.maxAmmo;
 
-            if (newWeapon.weaponPrefab != null && weaponHolder != null) // Змінено на маленьку літеру
+            if (newWeapon.weaponPrefab != null && weaponHolder != null)
             {
-                _spawnedWeaponModel = Instantiate(newWeapon.weaponPrefab, weaponHolder); // Змінено на маленьку літеру
+                // ВИПРАВЛЕНО: Прибрали (Object), тепер префаб створюється безпосередньо як GameObject
+                _spawnedWeaponModel = Instantiate(newWeapon.weaponPrefab, weaponHolder);
                 _spawnedWeaponModel.transform.localPosition = Vector3.zero;
                 _spawnedWeaponModel.transform.localRotation = Quaternion.identity;
             }
 
-            Debug.Log($"<color=cyan>[Weapon]</color> Екіпіровано: {newWeapon.itemName}. Набої: {_currentAmmo}/{newWeapon.maxAmmo}"); // Змінено на маленькі літери
+            Debug.Log($"<color=cyan>[Weapon] Екіпіровано:</color> {newWeapon.itemName}. Набої: {_currentAmmo}/{newWeapon.maxAmmo}");
         }
 
         public void UnequipCurrentWeapon()
@@ -116,109 +131,81 @@ namespace Project.Scripts.Game.Player
 
         private void OnReloadPerformed(InputAction.CallbackContext context)
         {
-            if (_currentWeaponData == null || _isReloading || _currentAmmo == _currentWeaponData.maxAmmo) return; // Змінено на маленьку літеру
+            if (_currentWeaponData == null || _isReloading || _currentAmmo == _currentWeaponData.maxAmmo) return;
 
-            StartCoroutine(ReloadCoroutine());
+            StartReload();
+        }
+
+        private void StartReload()
+        {
+            _isReloading = true;
+            _reloadTimer = _currentWeaponData.reloadTime;
+            Debug.Log($"[Weapon] Перезарядка... Потрібно зачекати {_currentWeaponData.reloadTime} сек.");
         }
 
         private void Shoot()
         {
             if (_currentAmmo <= 0)
             {
-                Debug.Log("[Weapon] Клац! Немає набоїв.");
+                Debug.Log("[Weapon] Клац! Набої закінчилися. Натисни R для перезарядки.");
                 return;
             }
 
             _currentAmmo--;
-            _nextFireTime = Time.time + _currentWeaponData.fireRate; // Змінено на маленьку літеру
+            _nextFireTime = Time.time + _currentWeaponData.fireRate;
 
             Transform cameraTransform = Camera.main != null ? Camera.main.transform : transform;
 
             if (bulletPrefab != null)
             {
-                // 1. Визначаємо точну точку, куди дивиться гравець
+                // 1. Визначаємо, куди саме дивиться гравець (центр екрана)
                 Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
                 Vector3 targetPoint;
-                float maxRange = _currentWeaponData != null ? _currentWeaponData.range : 100f; // Змінено на маленьку літеру
-
-                if (Physics.Raycast(ray, out RaycastHit hit, maxRange, hitLayers))
+                
+                if (Physics.Raycast(ray, out RaycastHit hit, _currentWeaponData.range, hitLayers))
                 {
-                    targetPoint = hit.point;
+                    targetPoint = hit.point; // Влучили в перешкоду
                 }
                 else
                 {
-                    targetPoint = ray.GetPoint(maxRange);
+                    targetPoint = ray.GetPoint(_currentWeaponData.range); // Постріл у повітря
                 }
 
-                // 2. Визначаємо точку вильоту кулі з дула моделі
-                Transform spawnTransform = null;
-
+                // 2. Визначаємо точку спавну кулі (шукаємо дуло Muzzle)
+                Vector3 spawnPosition = cameraTransform.position + cameraTransform.forward * 0.6f;
                 if (_spawnedWeaponModel != null)
                 {
-                    // Намагаємося отримати унікальну точку вильоту з поточної моделі зброї
-                    WeaponModel weaponModel = _spawnedWeaponModel.GetComponent<WeaponModel>();
-                    if (weaponModel != null)
+                    Transform muzzle = _spawnedWeaponModel.transform.Find("Muzzle");
+                    if (muzzle != null)
                     {
-                        spawnTransform = weaponModel.BulletSpawnTransform;
+                        spawnPosition = muzzle.position;
                     }
                 }
 
-                Vector3 spawnPosition;
-                if (spawnTransform != null)
-                {
-                    spawnPosition = spawnTransform.position;
-                }
-                else if (fallbackBulletSpawnPoint != null)
-                {
-                    spawnPosition = fallbackBulletSpawnPoint.position;
-                }
-                else
-                {
-                    spawnPosition = cameraTransform.position + cameraTransform.forward * 0.5f;
-                }
-
-                // 3. Розраховуємо вектор польоту кулі
+                // 3. Розраховуємо вектор польоту від ствола до цілі
                 Vector3 shootDirection = (targetPoint - spawnPosition).normalized;
-                Quaternion spawnRotation = Quaternion.LookRotation(shootDirection);
+                Quaternion bulletRotation = Quaternion.LookRotation(shootDirection);
 
                 // Створюємо кулю
-                GameObject bulletInstance = Instantiate(bulletPrefab, spawnPosition, spawnRotation);
-                Bullet bulletScript = bulletInstance.GetComponent<Bullet>();
+                GameObject bulletInstance = Instantiate(bulletPrefab, spawnPosition, bulletRotation);
                 Rigidbody rb = bulletInstance.GetComponent<Rigidbody>();
+                Bullet bulletScript = bulletInstance.GetComponent<Bullet>();
 
                 if (bulletScript != null)
                 {
-                    bulletScript.Initialize(hitLayers, _currentWeaponData.damage); // Змінено на маленьку літеру
-                    
-                    if (rb != null && bulletScript.BulletData != null)
-                    {
-                        rb.velocity = shootDirection * bulletScript.BulletData.Speed;
-                    }
+                    // ВИПРАВЛЕНО: Поміняли аргументи місцями. Спочатку йде hitLayers, потім шкода зброї.
+                    bulletScript.Initialize(hitLayers, _currentWeaponData.damage);
+                }
+
+                if (rb != null)
+                {
+                    // Використовуємо лінійну швидкість для нових версій Unity (як у вас і було налаштовано)
+                    rb.linearVelocity = shootDirection * bulletSpeed;
                 }
             }
             else
             {
-                Debug.LogWarning("[WeaponController] Не встановлено Bullet Prefab!");
-            }
-        }
-
-        private IEnumerator ReloadCoroutine()
-        {
-            _isReloading = true;
-            Debug.Log("[Weapon] Перезарядка...");
-
-            yield return new WaitForSeconds(_currentWeaponData.reloadTime); // Змінено на маленьку літеру
-
-            _currentAmmo = _currentWeaponData.maxAmmo; // Змінено на маленьку літеру
-            _isReloading = false;
-            Debug.Log($"[Weapon] Перезарядка завершена! Набої: {_currentAmmo}/{_currentWeaponData.maxAmmo}"); // Змінено на маленьку літеру
-        }
-
-        public void TriggerReload()
-        {
-            if (_currentWeaponData != null && !_isReloading && _currentAmmo < _currentWeaponData.maxAmmo) // Змінено на маленьку літеру
-            {
-                StartCoroutine(ReloadCoroutine());
+                Debug.LogWarning("[WeaponController] Не призначено Bullet Prefab в інспекторі!");
             }
         }
     }
